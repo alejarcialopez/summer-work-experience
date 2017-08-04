@@ -80,4 +80,5 @@ def postvalues(timeseries=args.timeseries, step=args.step, serverurl=args.url,
     print("it worked twice")
     # r = requests.post(url, params=payload, data=postvalues)
 
-postvalues()
+if __name__ == "__main__":
+    postvalues()
