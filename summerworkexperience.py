@@ -18,7 +18,6 @@ def parsing(dbfile, timeseries, step):
             if line['active'] == 'True' and datetime.strptime(line['start_date'], "%Y-%m-%d") <= stopdate:
                 keydate = datetime.strptime(line['start_date'], "%Y-%m-%d")
                 ldates.append(int(calendar.timegm(keydate.timetuple()) * 1000000000))
-    print(ldates)
     for location in range(0, len(ldates) - 2):
             if ldates[location] == ldates[location + 1]:
                 count += 1
@@ -53,7 +52,6 @@ def parsing(dbfile, timeseries, step):
 
     # print(r.status_code)
     # print(r.reason)
-    print("good")
 # for element in range(0, len(newdictionary) - 1):
 #    f.write(str(newdictionary[element]))
 #    f.write("\n")
