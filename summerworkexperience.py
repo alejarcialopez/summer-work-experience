@@ -5,10 +5,22 @@ import requests
 import secrets
 import argparse
 
+f = open('dropbox_licenses2.csv', 'r')
+
+linelist = f.readlines()
+lastline = linelist[len(linelist) - 1].split(",")
+
 parser = argparse.ArgumentParser(description="parse database of licenses and post rolling total and timestamps")
 parser.add_argument("dbfile", type=str, help="file to be parsed")
 parser.add_argument("timeseries", type=str, help="name of time series")
 parser.add_argument("step", type=int, help="interval of how quickly measurements are taken")
+parser.add_argument("-sd", "--stopdate", dest="stopd", type=str, action="store",
+                    default=lastline[0], help="store stop date (default: last date of file), date format: YYYY-MM-DD")
+parser.add_argument("url", type=str, help="server url")
+parser.add_argument("database", type=str, help="database to write to")
+parser.add_argument("user", type=str, help="username")
+parser.add_argument("password", type=str, help="password")
+
 args = parser.parse_args()
 
 
@@ -16,11 +28,15 @@ def parsing(dbfile=args.dbfile):
     count = 1
     lTimestamps = []
     ldates = []
-    stopdate = datetime.strptime("2017-07-17", "%Y-%m-%d")
+    try:
+        stop = datetime.strptime(args.stopd, "%Y-%m-%d")
+    except TypeError or ValueError:
+        print("follow format YYYY-MM-DD")
+        exit()
     with open(dbfile, 'r') as DBtoparse:
         content = csv.DictReader(DBtoparse)
         for line in content:
-            if line['active'] == 'True' and datetime.strptime(line['start_date'], "%Y-%m-%d") <= stopdate:
+            if line['active'] == 'True' and datetime.strptime(line['start_date'], "%Y-%m-%d") <= stop:
                 keydate = datetime.strptime(line['start_date'], "%Y-%m-%d")
                 ldates.append(int(calendar.timegm(keydate.timetuple()) * 1000000000))
     for location in range(0, len(ldates) - 2):
@@ -30,15 +46,17 @@ def parsing(dbfile=args.dbfile):
                 lTimestamps.append({"ts": ldates[location],
                                     "v": count})
                 count = 1
-    # check2 print("it worked once")
+    # check1
+    print("it worked once")
     return lTimestamps
 
 lValues = parsing()
 
 
-def postvalues(timeseries=args.timeseries, step=args.step):
-    url = 'http://ss-metrics.srv.uis.private.cam.ac.uk:8086/write'
-    payload = {"db": "aa2012", "u": secrets.INFLUX_USER, "p": secrets.INFLUX_PASS}
+def postvalues(timeseries=args.timeseries, step=args.step, serverurl=args.url,
+               INFLUX_DB=args.database, INFLUX_USER=args.user, INFLUX_PASS=args.password):
+    url = serverurl
+    payload = {"db": INFLUX_DB, "u": INFLUX_USER, "p": INFLUX_PASS}
     rollingtotal = 0
     k = 0
     for k in range(0, len(lValues) - 1):
@@ -50,7 +68,7 @@ def postvalues(timeseries=args.timeseries, step=args.step):
                           f'ds_type=gauge,host=selfservice-node4.srv.uis.private.cam.ac.uk,' \
                           f'plugin=statsd,state=ok,type=gauge ' \
                           f'value={rollingtotal} {x}\n'
-        r = requests.post(url, params=payload, data=postvalues)
+        # r = requests.post(url, params=payload, data=postvalues)
         rollingtotal += lValues[k]['v']
 
     postvalues = f'{timeseries},type_instance=num_provisioned_users,' \
@@ -58,7 +76,8 @@ def postvalues(timeseries=args.timeseries, step=args.step):
                  f'ds_type=gauge,host=selfservice-node4.srv.uis.private.cam.ac.uk,' \
                  f'plugin=statsd,state=ok,type=gauge ' \
                  f'value={lValues[k + 1]["v"] + rollingtotal} {x + step}'
-    # check1 print("it worked twice")
-    r = requests.post(url, params=payload, data=postvalues)
+    # check2
+    print("it worked twice")
+    # r = requests.post(url, params=payload, data=postvalues)
 
 postvalues()
