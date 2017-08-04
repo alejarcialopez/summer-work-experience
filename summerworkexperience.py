@@ -5,28 +5,14 @@ import requests
 import argparse
 
 
-def getlastline(dbfile):
-    f = open(dbfile, 'r')
-    linelist = f.readlines()
-    lastline = linelist[len(linelist) - 1].split(",")
-    f.close()
-    return lastline
-
-
-def parsing(dbfile, stopd):
-    lastline = getlastline(dbfile)
+def parsing(dbfile):
     count = 1
     lTimestamps = []
     ldates = []
-    try:
-        stop = datetime.strptime(stopd, "%Y-%m-%d")
-    except TypeError or ValueError:
-        print("follow format YYYY-MM-DD")
-        exit()
     with open(dbfile, 'r') as DBtoparse:
         content = csv.DictReader(DBtoparse)
         for line in content:
-            if line['active'] == 'True' and datetime.strptime(line['start_date'], "%Y-%m-%d") <= stop:
+            if line['active'] == 'True':
                 keydate = datetime.strptime(line['start_date'], "%Y-%m-%d")
                 ldates.append(int(calendar.timegm(keydate.timetuple()) * 1000000000))
     for location in range(0, len(ldates) - 2):
@@ -67,4 +53,3 @@ def postvalues(timeseries, step, serverurl,
     # check2
     print("it worked twice")
     # r = requests.post(url, params=payload, data=postvalues)
-
