@@ -10,16 +10,16 @@ f = open('dropbox_licenses2.csv', 'r')
 linelist = f.readlines()
 lastline = linelist[len(linelist) - 1].split(",")
 
-parser = argparse.ArgumentParser(description="parse database of licenses and post rolling total and timestamps")
+parser = argparse.ArgumentParser(description="parse a CSV of metrics and backfill an InfluxDB timeseries with values")
 parser.add_argument("dbfile", type=str, help="file to be parsed")
 parser.add_argument("timeseries", type=str, help="name of time series")
 parser.add_argument("step", type=int, help="interval of how quickly measurements are taken")
 parser.add_argument("-sd", "--stopdate", dest="stopd", type=str, action="store",
                     default=lastline[0], help="store stop date (default: last date of file), date format: YYYY-MM-DD")
-parser.add_argument("url", type=str, help="server url")
-parser.add_argument("database", type=str, help="database to write to")
-parser.add_argument("user", type=str, help="username")
-parser.add_argument("password", type=str, help="password")
+parser.add_argument("url", type=str, help="InfluxDB server url")
+parser.add_argument("database", type=str, help="InfluxDB database to write to")
+parser.add_argument("user", type=str, help="InfluxDB username")
+parser.add_argument("password", type=str, help="InfluxDB password")
 
 args = parser.parse_args()
 
@@ -80,4 +80,5 @@ def postvalues(timeseries=args.timeseries, step=args.step, serverurl=args.url,
     print("it worked twice")
     # r = requests.post(url, params=payload, data=postvalues)
 
-postvalues()
+if __name__ == "__main__":
+    postvalues()
