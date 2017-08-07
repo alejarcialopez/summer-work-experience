@@ -5,12 +5,19 @@ import requests
 import argparse
 
 
-def parsing(dbfile):
+def parse_post(dbfile, options):
+    location = 1
+    url = options.url
+    payload = {"db": options.influx_db, "u": options.influx_user, "p": options.influx_pass}
+    rollingtotal = 0
     count = 1
     lTimestamps = []
     ldates = []
+    pairdate1 = None
+    pairdate2 = None
+    postvalues = ""
     with open(dbfile, 'r') as DBtoparse:
-        content = csv.DictReader(DBtoparse)
+        content = list(csv.DictReader(DBtoparse))
         if args.stopd:
             try:
                 stopdate = datetime.strptime(args.stopd, "%Y-%m-%d")
@@ -18,49 +25,69 @@ def parsing(dbfile):
                 print("follow date format: YYYY-MM-DD")
                 exit()
             for line in content:
-                if line['active'] == 'True' and datetime.strptime(line['start_date'], "%Y-%m-%d") <= stopdate:
-                    keydate = datetime.strptime(line['start_date'], "%Y-%m-%d")
-                    ldates.append(int(calendar.timegm(keydate.timetuple()) * 1000000000))
+                try:
+                    nextline = content[location]
+                except IndexError:
+                    nextline = content[location - 1]
+                if line['active'] == 'True':
+                    if datetime.strptime(line['start_date'], "%Y-%m-%d") <= stopdate and \
+                                    line['start_date'] == nextline['start_date']:
+
+                        pairdate1 = int(calendar.timegm(datetime.strptime(line['start_date'], "%Y-%m-%d")).timetuple() *
+                                        1000000000)
+                        count += 1
+                    elif datetime.strptime(line['start_date'], "%Y-%m-%d") <= stopdate and \
+                            line['start_date'] != nextline['start_date']:
+
+                        pairdate2 = int(
+                            calendar.timegm(datetime.strptime(nextline['start_date'], "%Y-%m-%d")).timetuple() *
+                            1000000000)
+                        rollingtotal += count
+                        if pairdate1 is None:
+                            date1 = datetime.strptime(line['start_date'], "%Y-%m-%d")
+                            pairdate1 = int(calendar.timegm(date1.timetuple()) *
+                                            1000000000)
+                        for x in range(pairdate1, pairdate2, options.step):
+                            postvalues += f'{options.timeseries},type_instance=num_provisioned_users,' \
+                                          f'ds_index=0,ds_name=value,' \
+                                          f'ds_type=gauge,host=selfservice-node4.srv.uis.private.cam.ac.uk,' \
+                                          f'plugin=statsd,state=ok,type=gauge ' \
+                                          f'value={rollingtotal} {x}\n'
+                            # r = requests.post(url, params=payload, data=postvalues)
+                        count = 1
+                        location += 1
         else:
             for line in content:
-                if line['active'] == 'True':
-                    keydate = datetime.strptime(line['start_date'], "%Y-%m-%d")
-                    ldates.append(int(calendar.timegm(keydate.timetuple()) * 1000000000))
-    for location in range(0, len(ldates) - 2):
-        if ldates[location] == ldates[location + 1]:
-            count += 1
-        elif ldates[location] != ldates[location + 1]:
-            lTimestamps.append({"ts": ldates[location],
-                                "v": count})
-            count = 1
-    return lTimestamps
+                try:
+                    nextline = content[location]
+                except IndexError:
+                    nextline = content[location - 1]
+                if line['active'] == 'True' and line['start_date'] == nextline['start_date']:
+                    date1 = datetime.strptime(line['start_date'], "%Y-%m-%d")
+                    pairdate1 = int(calendar.timegm(date1.timetuple()) *
+                                    1000000000)
+                    count += 1
+                elif line['active'] == 'True' and line['start_date'] != nextline['start_date']:
+                    date2 = datetime.strptime(nextline['start_date'], "%Y-%m-%d")
+                    pairdate2 = int(calendar.timegm(date2.timetuple()) *
+                                    1000000000)
+                    rollingtotal += count
+                    if pairdate1 is None:
+                        date1 = datetime.strptime(line['start_date'], "%Y-%m-%d")
+                        pairdate1 = int(calendar.timegm(date1.timetuple()) *
+                                        1000000000)
+                    for x in range(pairdate1, pairdate2, options.step):
+                        postvalues += f'{options.timeseries},type_instance=num_provisioned_users,' \
+                                      f'ds_index=0,ds_name=value,' \
+                                      f'ds_type=gauge,host=selfservice-node4.srv.uis.private.cam.ac.uk,' \
+                                      f'plugin=statsd,state=ok,type=gauge ' \
+                                      f'value={rollingtotal} {x}\n'
+                        # r = requests.post(url, params=payload, data=postvalues)
+                    count = 1
+                location += 1
 
-
-def postvalues(options, lvalues):
-    url = options.serverurl
-    payload = {"db": options.influx_db, "u": options.influx_user, "p": options.influx_pas}
-    rollingtotal = 0
-    k = 0
-    for k in range(0, len(lvalues) - 1):
-        postvalues = ""
-        rollingtotal += lvalues[k]['v']
-        for x in range(lvalues[k]['ts'], lvalues[k + 1]['ts'], options.step):
-            postvalues += f'{options.timeseries},type_instance=num_provisioned_users,' \
-                          f'ds_index=0,ds_name=value,' \
-                          f'ds_type=gauge,host=selfservice-node4.srv.uis.private.cam.ac.uk,' \
-                          f'plugin=statsd,state=ok,type=gauge ' \
-                          f'value={options.rollingtotal} {x}\n'
-            pass
-        r = requests.post(url, params=payload, data=postvalues)
-        rollingtotal += lvalues[k]['v']
-
-    postvalues = f'{options.timeseries},type_instance=num_provisioned_users,' \
-                 f'ds_index=0,ds_name=value,' \
-                 f'ds_type=gauge,host=selfservice-node4.srv.uis.private.cam.ac.uk,' \
-                 f'plugin=statsd,state=ok,type=gauge ' \
-                 f'value={lvalues[k + 1]["v"] + rollingtotal} {x + options.step}'
-    # r = requests.post(url, params=payload, data=postvalues)
-
+    # check1
+    print("it worked!!!!!!!!!")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="parse database of licenses and post rolling total and timestamps")
@@ -70,12 +97,11 @@ if __name__ == "__main__":
     parser.add_argument("-sd", "--stopdate", dest="stopd", type=str, action="store",
                         help="store stop date (default: last date of file), date format: YYYY-MM-DD")
     parser.add_argument("url", type=str, help="server url")
-    parser.add_argument("database", type=str, help="database to write to")
-    parser.add_argument("user", type=str, help="username")
-    parser.add_argument("password", type=str, help="password")
+    parser.add_argument("influx_db", type=str, help="database to write to")
+    parser.add_argument("influx_user", type=str, help="username")
+    parser.add_argument("influx_pass", type=str, help="password")
     args = parser.parse_args()
-    lvalues = parsing(args.dbfile)
-    postvalues(args, lvalues)
+    parse_post(args.dbfile, args)
 
 else:
     parser = argparse.ArgumentParser(description="parse database of licenses and post rolling total and timestamps")
