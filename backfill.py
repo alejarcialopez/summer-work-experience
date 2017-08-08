@@ -5,13 +5,13 @@ import requests
 import argparse
 
 
-def parse_post(dbfile, options):
+def parse_post(options):
     location = 1
     url = options.url
     payload = {"db": options.influx_db, "u": options.influx_user, "p": options.influx_pass}
     count = 1
     postvalues = ""
-    with open(dbfile, 'r') as content:
+    with open(options.dbfile, 'r') as content:
         headers = content.readline()
         line1 = content.readline()
         stop = datetime.strptime(options.stopd, '%Y-%m-%d')
@@ -39,13 +39,14 @@ def parse_post(dbfile, options):
                             a = pairdate1
                             b = pairdate2
                         print(a, b)
+                        postvalues = ""
                         for x in range(a, b, options.step):
                             postvalues += f'{options.timeseries},type_instance=num_provisioned_users,' \
                                           f'ds_index=0,ds_name=value,' \
                                           f'ds_type=gauge,host=selfservice-node4.srv.uis.private.cam.ac.uk,' \
                                           f'plugin=statsd,state=ok,type=gauge ' \
                                           f'value={count} {x}\n'
-                            # r = requests.post(url, params=payload, data=postvalues)
+                        # r = requests.post(url, params=payload, data=postvalues)
                 line1 = line2
         postvalues = f'{options.timeseries},type_instance=num_provisioned_users,' \
                      f'ds_index=0,ds_name=value,' \
@@ -66,7 +67,7 @@ if __name__ == "__main__":
     parser.add_argument("-su", "--serveruser", dest="influx_user", type=str, help="username")
     parser.add_argument("-sp", "--serverpass", dest="influx_pass", type=str, help="password")
     args = parser.parse_args()
-    parse_post(args.dbfile, args)
+    parse_post(args)
 
 else:
     parser = argparse.ArgumentParser(description="parse database of licenses and post rolling total and timestamps")
