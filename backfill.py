@@ -5,7 +5,7 @@ import argparse
 import validators
 from pathlib import Path
 
-chars = ['/', '_', '-']
+chars = ['\\', '_', '-']
 
 
 def parse_post(options):
@@ -57,49 +57,39 @@ def parse_post(options):
         # r = requests.post(url, params=payload, data=postvalues)
 
 if __name__ == "__main__":
+    def goodts(timesrs):
+        if 48 <= ord(timesrs[0]) <= 57:
+            raise ValueError(f'invalid character "{times[0]}", no numbers at the start')
+        for letter in timesrs:
+            if letter in chars:
+                pass
+            elif 48 <= ord(letter) <= 57:
+                pass
+            elif ord(letter) < 65:
+                raise ValueError(f'invalid character "{letter}"')
+            elif 90 < ord(letter) < 97:
+                raise ValueError(f'invalid character "{letter}"')
+            elif ord(letter) > 122:
+                raise ValueError(f'invalid character "{letter}"')
+
     parser = argparse.ArgumentParser(description="parse database of licenses and post rolling total and timestamps")
-    parser.add_argument("-db", "--databasefile", dest="dbfile", type=str, help="file to be parsed")
-    parser.add_argument("-ts", "--timeseries", dest="timeseries", type=str, help="name of time series")
-    parser.add_argument("-i", "--interval", dest="step", type=int, help="interval of how quickly measurements are taken")
-    parser.add_argument("-sd", "--stopdate", dest="stopd", type=str, default=str(date.max), action="store",
-                        help="store stop date (default: last date of file), date format: YYYY-MM-DD")
-    parser.add_argument("-l", "--link", dest="url", type=str, help="server url")
-    parser.add_argument("-sdb", "--serverdb", dest="influx_db", type=str, help="database to write to")
-    parser.add_argument("-su", "--serveruser", dest="influx_user", type=str, help="username")
-    parser.add_argument("-sp", "--serverpass", dest="influx_pass", type=str, help="password")
+    parser.add_argument("-f", "--databasefile", dest="dbfile", type=open, requiered=True, help="file to be parsed")
+    parser.add_argument("-t", "--timeseries", dest="timeseries", type=goodts, requiered=True, help="name of time series")
+    parser.add_argument("-i", "--interval", dest="step", type=int, requiered=True,
+                        help="interval of how quickly measurements are taken")
+    parser.add_argument("-d", "--stopdate", dest="stopd", type=str, default=str(date.max),
+                        requiered=True, help="store stop date (default: last date of file), date format: YYYY-MM-DD")
+    parser.add_argument("-l", "--link", dest="url", type=str, requiered=True, help="server url")
+    parser.add_argument("-b", "--serverdb", dest="influx_db", type=str, requiered=True, help="database to write to")
+    parser.add_argument("-u", "--serveruser", dest="influx_user", type=str, requiered=True, help="username")
+    parser.add_argument("-p", "--serverpass", dest="influx_pass", type=str, requiered=True, help="password")
     args = parser.parse_args()
     dArgs = vars(args)
     for element in dArgs:
         if dArgs[element] is None:
             raise TypeError("please fill in necessary arguments, run -h for more help")
         elif dArgs[element] is not None:
-            if element == 'dbfile':
-                f = Path(dArgs[element])
-                if f.is_file():
-                    pass
-                else:
-                    raise FileNotFoundError("file not found")
-            elif element == 'timeseries':
-                teststr = dArgs[element]
-                if 48 <= ord(teststr[0]) <= 57:
-                    raise ValueError(f'invalid character "{letter}", no numbers at the start')
-                for letter in teststr:
-                    if letter in chars:
-                        pass
-                    elif 48 <= ord(letter) <= 57:
-                        pass
-                    elif ord(letter) < 65:
-                        raise ValueError(f'invalid character "{letter}"')
-                    elif 90 < ord(letter) < 97:
-                        raise ValueError(f'invalid character "{letter}"')
-                    elif ord(letter) > 122:
-                        raise ValueError(f'invalid character "{letter}"')
-            elif element == 'step':
-                try:
-                    tststep = int(dArgs[element])
-                except ValueError:
-                    raise ValueError("this arguments requires numbers only")
-            elif element == 'stopd':
+            if element == 'stopd':
                 try:
                     tstdate = datetime.strptime(dArgs[element], '%Y-%m-%d')
                 except ValueError:
