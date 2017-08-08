@@ -5,15 +5,13 @@ import argparse
 import validators
 from pathlib import Path
 
-
 chars = ['/', '_', '-']
 
+
 def parse_post(options):
-    location = 1
     url = options.url
     payload = {"db": options.influx_db, "u": options.influx_user, "p": options.influx_pass}
     count = 1
-    postvalues = ""
     with open(options.dbfile, 'r') as content:
         headers = content.readline()
         line1 = content.readline()
