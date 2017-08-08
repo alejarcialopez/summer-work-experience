@@ -27,7 +27,6 @@ def parse_post(dbfile, options):
             date2 = datetime.strptime(list2[0][0], "%Y-%m-%d")
             pairdate2 = int(calendar.timegm(date2.timetuple()) *
                             1000000000)
-            x = 0
             if list2[0][0] != '' and date2 <= stop:
                 if list1[0][2] == 'True\n' and list2[0][2] == 'True\n':
                     if list1[0][0] == list2[0][0]:
@@ -39,18 +38,15 @@ def parse_post(dbfile, options):
                                           f'ds_index=0,ds_name=value,' \
                                           f'ds_type=gauge,host=selfservice-node4.srv.uis.private.cam.ac.uk,' \
                                           f'plugin=statsd,state=ok,type=gauge ' \
-                                        f'value={count} {x}\n'
-                        avoiderror = x
+                                          f'value={count} {x}\n'
                             # r = requests.post(url, params=payload, data=postvalues)
                 line1 = line2
         postvalues = f'{options.timeseries},type_instance=num_provisioned_users,' \
                      f'ds_index=0,ds_name=value,' \
                      f'ds_type=gauge,host=selfservice-node4.srv.uis.private.cam.ac.uk,' \
                      f'plugin=statsd,state=ok,type=gauge ' \
-                     f'value={count} {avoiderror + options.step}'
-        print(postvalues)
+                     f'value={count} {x + options.step}'
         # r = requests.post(url, params=payload, data=postvalues)
-    print("it worked!!!!!!!!!")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="parse database of licenses and post rolling total and timestamps")
