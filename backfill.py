@@ -1,9 +1,12 @@
-import csv
 from datetime import *
 import calendar
 import requests
 import argparse
+import validators
+from pathlib import Path
 
+
+chars = ['/', '_', '-']
 
 def parse_post(options):
     location = 1
@@ -60,13 +63,65 @@ if __name__ == "__main__":
     parser.add_argument("-db", "--databasefile", dest="dbfile", type=str, help="file to be parsed")
     parser.add_argument("-ts", "--timeseries", dest="timeseries", type=str, help="name of time series")
     parser.add_argument("-i", "--interval", dest="step", type=int, help="interval of how quickly measurements are taken")
-    parser.add_argument("-sd", "--stopdate", dest="stopd", type=str, default='4000-12-31', action="store",
+    parser.add_argument("-sd", "--stopdate", dest="stopd", type=str, default=str(date.max), action="store",
                         help="store stop date (default: last date of file), date format: YYYY-MM-DD")
     parser.add_argument("-l", "--link", dest="url", type=str, help="server url")
     parser.add_argument("-sdb", "--serverdb", dest="influx_db", type=str, help="database to write to")
     parser.add_argument("-su", "--serveruser", dest="influx_user", type=str, help="username")
     parser.add_argument("-sp", "--serverpass", dest="influx_pass", type=str, help="password")
     args = parser.parse_args()
+    dArgs = vars(args)
+    for element in dArgs:
+        if dArgs[element] is None:
+            raise TypeError("please fill in necessary arguments, run -h for more help")
+        elif dArgs[element] is not None:
+            if element == 'dbfile':
+                f = Path(dArgs[element])
+                if f.is_file():
+                    pass
+                else:
+                    raise FileNotFoundError("file not found")
+            elif element == 'timeseries':
+                teststr = dArgs[element]
+                if 48 <= ord(teststr[0]) <= 57:
+                    raise ValueError(f'invalid character "{letter}", no numbers at the start')
+                for letter in teststr:
+                    if letter in chars:
+                        pass
+                    elif 48 <= ord(letter) <= 57:
+                        pass
+                    elif ord(letter) < 65:
+                        raise ValueError(f'invalid character "{letter}"')
+                    elif 90 < ord(letter) < 97:
+                        raise ValueError(f'invalid character "{letter}"')
+                    elif ord(letter) > 122:
+                        raise ValueError(f'invalid character "{letter}"')
+            elif element == 'step':
+                try:
+                    tststep = int(dArgs[element])
+                except ValueError:
+                    raise ValueError("this arguments requires numbers only")
+            elif element == 'stopd':
+                try:
+                    tstdate = datetime.strptime(dArgs[element], '%Y-%m-%d')
+                except ValueError:
+                    raise ValueError("follow correct format(YYYY-MM-DD)")
+            elif element == 'url':
+                if not validators.url(dArgs[element]):
+                    raise ValueError('malformed url')
+            elif element == 'influx_db' or element == 'influx_user':
+                dbandu = dArgs[element]
+                for letter in dbandu:
+                    if 48 <= ord(dbandu[0]) <= 57:
+                        raise ValueError(f'invalid character "{letter}", no numbers at the start')
+                    elif 48 <= ord(letter) <= 57:
+                        pass
+                    elif ord(letter) < 65:
+                        raise ValueError(f'invalid character "{letter}"')
+                    elif 90 < ord(letter) < 97:
+                        raise ValueError(f'invalid character "{letter}"')
+                    elif ord(letter) > 122:
+                        raise ValueError(f'invalid character "{letter}"')
     parse_post(args)
 
 else:
