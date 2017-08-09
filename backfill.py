@@ -3,12 +3,16 @@ import calendar
 import requests
 import argparse
 import validators
+import getpass
+import sys
 
 chars = ['/', '_', '-']
 
 
 def parse_post(options):
     url = options.url
+    if options.influx_pass is None:
+        options.influx_pass = getpass.getpass("password: ")
     payload = {"db": options.influx_db, "u": options.influx_user, "p": options.influx_pass}
     count = 1
     with open(options.dbfile.name, 'r') as content:
@@ -38,22 +42,22 @@ def parse_post(options):
                         else:
                             a = pairdate1
                             b = pairdate2
-                        print(a, b)
+
+                        if not options.dryrun:
+                            print(a, b)
                         postvalues = ""
+                        dryrunstr = f'{options.timeseries} (other post values) value={count} {a}'
                         for x in range(a, b, options.step):
                             postvalues += f'{options.timeseries},type_instance=num_provisioned_users,' \
                                           f'ds_index=0,ds_name=value,' \
                                           f'ds_type=gauge,host=selfservice-node4.srv.uis.private.cam.ac.uk,' \
                                           f'plugin=statsd,state=ok,type=gauge ' \
                                           f'value={count} {x}\n'
-                        # r = requests.post(url, params=payload, data=postvalues)
+                        if not options.dryrun:
+                            requests.post(url, params=payload, data=postvalues)
+                        elif options.dryrun:
+                            print(dryrunstr)
                 line1 = line2
-        postvalues = f'{options.timeseries},type_instance=num_provisioned_users,' \
-                     f'ds_index=0,ds_name=value,' \
-                     f'ds_type=gauge,host=selfservice-node4.srv.uis.private.cam.ac.uk,' \
-                     f'plugin=statsd,state=ok,type=gauge ' \
-                     f'value={count} {x + options.step}'
-        # r = requests.post(url, params=payload, data=postvalues)
 
 if __name__ == "__main__":
     def ts(timesrs):
@@ -71,6 +75,7 @@ if __name__ == "__main__":
                 raise argparse.ArgumentTypeError(f'invalid character "{letter}"')
             elif ord(letter) > 122:
                 raise argparse.ArgumentTypeError(f'invalid character "{letter}"')
+        return test
 
 
     def user_database(string):
@@ -88,15 +93,47 @@ if __name__ == "__main__":
                 raise argparse.ArgumentTypeError(f'invalid character "{letter}"')
             elif ord(letter) > 122:
                 raise argparse.ArgumentTypeError(f'invalid character "{letter}"')
+        return test
 
 
     def url(link):
         if not validators.url(link):
             raise argparse.ArgumentTypeError('malformed url')
+        return link
+
+
+    def interval(x):
+        units = ['h', 'm', 's', 'ms', 'us', 'ns']
+        if len(x) == 2:
+            if x[1] == units[0]:
+                newstep = 3600000000000 * int(x[0])
+                return newstep
+            elif x[1] == units[1]:
+                newstep = 60000000000 * int(x[0])
+                return newstep
+            elif x[1] == units[2]:
+                newstep = 1000000000 * int(x[0])
+                return newstep
+            elif x[1] == units[3]:
+                newstep = 1000000 * int(x[0])
+                return newstep
+            elif x[1] == units[4]:
+                newstep = 1000 * int(x[0])
+                return newstep
+            elif x[1] == units[5]:
+                return int(x[0])
+            else:
+                raise ValueError(f"only choose this units: {units}")
+        elif len(x) > 2:
+            raise TypeError("a minimum of one argument is expected")
+
+        elif len(x) == 1:
+            return int(x[0])
 
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("-f", "--databasefile", dest="dbfile", type=argparse.FileType('r'), help="file to be parsed")
+    parser.add_argument("-f", "--databasefile", dest="dbfile", type=argparse.FileType('r'), default=sys.stdin,
+                        help="file to be parsed")
     parser.add_argument("-d", "--stopdate", dest="stopd", type=lambda d: datetime.strptime(d, '%Y-%m-%d'),
                         default=str(date.max),
                         help="store stop date (default: last date of file), date format: YYYY-MM-DD")
@@ -105,12 +142,15 @@ if __name__ == "__main__":
     parser.add_argument("-b", "--serverdb", dest="influx_db", type=user_database, required=True,
                         help="database to write to")
     parser.add_argument("-u", "--serveruser", dest="influx_user", type=user_database, required=True, help="username")
-    parser.add_argument("-i", "--interval", dest="step", type=int, required=True,
-                        help="interval of how quickly measurements are taken")
+    parser.add_argument("-i", "--interval", dest="step", type=str, required=True, nargs='*',
+                        help="interval and unit (default unit: ns")
     parser.add_argument("-l", "--link", dest="url", type=url,
                         required=True, help="server url")
-    parser.add_argument("-p", "--serverpass", dest="influx_pass", type=str, required=True, help="password")
+    parser.add_argument("-p", "--serverpass", dest="influx_pass", type=str, help="password")
+    parser.add_argument("-r", "--dryrun", dest="dryrun", type=bool, default=False, choices=[True, 1])
     args = parser.parse_args()
+    args.step = interval(args.step)
+
     parse_post(args)
 
 else:
