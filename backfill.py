@@ -4,8 +4,8 @@ import requests
 import argparse
 import validators
 import getpass
-import sys
-
+import io
+import fileinput
 chars = ['/', '_', '-']
 
 
@@ -15,7 +15,11 @@ def parse_post(options):
         options.influx_pass = getpass.getpass("password: ")
     payload = {"db": options.influx_db, "u": options.influx_user, "p": options.influx_pass}
     count = 1
-    with open(options.dbfile.name, 'r') as content:
+    if isinstance(args.dbfile, io.TextIOWrapper):
+        dbfile = options.dbfile.name
+    else:
+        dbfile = 0
+    with open(dbfile, 'r') as content:
         headers = content.readline()
         line1 = content.readline()
         stop = options.stopd
@@ -130,10 +134,9 @@ if __name__ == "__main__":
         elif len(x) == 1:
             return int(x[0])
 
-
     parser = argparse.ArgumentParser()
-    parser.add_argument("-f", "--databasefile", dest="dbfile", type=argparse.FileType('r'), default=sys.stdin,
-                        help="file to be parsed")
+    parser.add_argument("-f", "--databasefile", dest="dbfile", type=argparse.FileType('r'),
+                        default=fileinput.input(), help="file to be parsed")
     parser.add_argument("-d", "--stopdate", dest="stopd", type=lambda d: datetime.strptime(d, '%Y-%m-%d'),
                         default=str(date.max),
                         help="store stop date (default: last date of file), date format: YYYY-MM-DD")
