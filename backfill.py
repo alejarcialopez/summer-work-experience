@@ -107,32 +107,34 @@ if __name__ == "__main__":
 
 
     def interval(x):
-        units = ['h', 'm', 's', 'ms', 'us', 'ns']
-        if len(x) == 2:
-            if x[1] == units[0]:
-                newstep = 3600000000000 * int(x[0])
-                return newstep
-            elif x[1] == units[1]:
-                newstep = 60000000000 * int(x[0])
-                return newstep
-            elif x[1] == units[2]:
-                newstep = 1000000000 * int(x[0])
-                return newstep
-            elif x[1] == units[3]:
-                newstep = 1000000 * int(x[0])
-                return newstep
-            elif x[1] == units[4]:
-                newstep = 1000 * int(x[0])
-                return newstep
-            elif x[1] == units[5]:
-                return int(x[0])
-            else:
-                raise ValueError(f"only choose this units: {units}")
-        elif len(x) > 2:
-            raise TypeError("a minimum of one argument is expected")
-
-        elif len(x) == 1:
-            return int(x[0])
+        unit = ""
+        units = ['h', 'm', 's', 'ms', 'us', 'ns', ""]
+        step = ""
+        for char in x:
+            try:
+                int(char)
+                step += char
+            except ValueError:
+                unit += char
+        if unit == units[0]:
+            newstep = 3600000000000 * int(step)
+            return newstep
+        elif unit == units[1]:
+            newstep = 60000000000 * int(step)
+            return newstep
+        elif unit == units[2]:
+            newstep = 1000000000 * int(step)
+            return newstep
+        elif unit == units[3]:
+            newstep = 1000000 * int(step)
+            return newstep
+        elif unit == units[4]:
+            newstep = 1000 * int(step)
+            return newstep
+        elif unit == units[5] or unit == units[6]:
+            return int(step)
+        else:
+            argparse.ArgumentParser().error(f"only choose this units: {units}")
 
     parser = argparse.ArgumentParser()
     parser.add_argument("-f", "--databasefile", dest="dbfile", type=argparse.FileType('r'),
@@ -145,14 +147,13 @@ if __name__ == "__main__":
     parser.add_argument("-b", "--serverdb", dest="influx_db", type=user_database, required=True,
                         help="database to write to")
     parser.add_argument("-u", "--serveruser", dest="influx_user", type=user_database, required=True, help="username")
-    parser.add_argument("-i", "--interval", dest="step", type=str, required=True, nargs='*',
-                        help="interval and unit (default unit: ns")
+    parser.add_argument("-i", "--interval", dest="step", type=interval, required=True,
+                        help="interval and unit (default unit: ns. e.g: 2h")
     parser.add_argument("-l", "--link", dest="url", type=url,
                         required=True, help="server url")
     parser.add_argument("-p", "--serverpass", dest="influx_pass", type=str, help="password")
     parser.add_argument("-r", "--dryrun", dest="dryrun", type=bool, default=False, choices=[True, 1])
     args = parser.parse_args()
-    args.step = interval(args.step)
 
     parse_post(args)
 
