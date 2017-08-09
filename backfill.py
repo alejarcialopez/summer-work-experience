@@ -3,19 +3,18 @@ import calendar
 import requests
 import argparse
 import validators
-from pathlib import Path
 
-chars = ['\\', '_', '-']
+chars = ['/', '_', '-']
 
 
 def parse_post(options):
     url = options.url
     payload = {"db": options.influx_db, "u": options.influx_user, "p": options.influx_pass}
     count = 1
-    with open(options.dbfile, 'r') as content:
+    with open(options.dbfile.name, 'r') as content:
         headers = content.readline()
         line1 = content.readline()
-        stop = datetime.strptime(options.stopd, '%Y-%m-%d')
+        stop = options.stopd
         for line in content:
             list1 = []
             list2 = []
@@ -57,59 +56,61 @@ def parse_post(options):
         # r = requests.post(url, params=payload, data=postvalues)
 
 if __name__ == "__main__":
-    def goodts(timesrs):
-        if 48 <= ord(timesrs[0]) <= 57:
-            raise ValueError(f'invalid character "{times[0]}", no numbers at the start')
-        for letter in timesrs:
+    def ts(timesrs):
+        test = str(timesrs)
+        if 48 <= ord(test[0]) <= 57:
+            raise argparse.ArgumentTypeError(f'invalid character "{test[0]}", no numbers at the start')
+        for letter in test:
             if letter in chars:
                 pass
             elif 48 <= ord(letter) <= 57:
                 pass
             elif ord(letter) < 65:
-                raise ValueError(f'invalid character "{letter}"')
+                raise argparse.ArgumentTypeError(f'invalid character "{letter}"')
             elif 90 < ord(letter) < 97:
-                raise ValueError(f'invalid character "{letter}"')
+                raise argparse.ArgumentTypeError(f'invalid character "{letter}"')
             elif ord(letter) > 122:
-                raise ValueError(f'invalid character "{letter}"')
+                raise argparse.ArgumentTypeError(f'invalid character "{letter}"')
 
-    parser = argparse.ArgumentParser(description="parse database of licenses and post rolling total and timestamps")
-    parser.add_argument("-f", "--databasefile", dest="dbfile", type=open, requiered=True, help="file to be parsed")
-    parser.add_argument("-t", "--timeseries", dest="timeseries", type=goodts, requiered=True, help="name of time series")
-    parser.add_argument("-i", "--interval", dest="step", type=int, requiered=True,
+
+    def user_database(string):
+        test = str(string)
+        if 48 <= ord(test[0]) <= 57:
+            raise argparse.ArgumentTypeError(f'invalid character "{test[0]}", no numbers at the start')
+        for letter in test:
+            if letter in chars[1:2]:
+                pass
+            elif 48 <= ord(letter) <= 57:
+                pass
+            elif ord(letter) < 65:
+                raise argparse.ArgumentTypeError(f'invalid character "{letter}"')
+            elif 90 < ord(letter) < 97:
+                raise argparse.ArgumentTypeError(f'invalid character "{letter}"')
+            elif ord(letter) > 122:
+                raise argparse.ArgumentTypeError(f'invalid character "{letter}"')
+
+
+    def url(link):
+        if not validators.url(link):
+            raise argparse.ArgumentTypeError('malformed url')
+
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-f", "--databasefile", dest="dbfile", type=argparse.FileType('r'), help="file to be parsed")
+    parser.add_argument("-d", "--stopdate", dest="stopd", type=lambda d: datetime.strptime(d, '%Y-%m-%d'),
+                        default=str(date.max),
+                        help="store stop date (default: last date of file), date format: YYYY-MM-DD")
+    parser.add_argument("-t", "--timeseries", dest="timeseries", type=ts,
+                        required=True, help="name of time series")
+    parser.add_argument("-b", "--serverdb", dest="influx_db", type=user_database, required=True,
+                        help="database to write to")
+    parser.add_argument("-u", "--serveruser", dest="influx_user", type=user_database, required=True, help="username")
+    parser.add_argument("-i", "--interval", dest="step", type=int, required=True,
                         help="interval of how quickly measurements are taken")
-    parser.add_argument("-d", "--stopdate", dest="stopd", type=str, default=str(date.max),
-                        requiered=True, help="store stop date (default: last date of file), date format: YYYY-MM-DD")
-    parser.add_argument("-l", "--link", dest="url", type=str, requiered=True, help="server url")
-    parser.add_argument("-b", "--serverdb", dest="influx_db", type=str, requiered=True, help="database to write to")
-    parser.add_argument("-u", "--serveruser", dest="influx_user", type=str, requiered=True, help="username")
-    parser.add_argument("-p", "--serverpass", dest="influx_pass", type=str, requiered=True, help="password")
+    parser.add_argument("-l", "--link", dest="url", type=url,
+                        required=True, help="server url")
+    parser.add_argument("-p", "--serverpass", dest="influx_pass", type=str, required=True, help="password")
     args = parser.parse_args()
-    dArgs = vars(args)
-    for element in dArgs:
-        if dArgs[element] is None:
-            raise TypeError("please fill in necessary arguments, run -h for more help")
-        elif dArgs[element] is not None:
-            if element == 'stopd':
-                try:
-                    tstdate = datetime.strptime(dArgs[element], '%Y-%m-%d')
-                except ValueError:
-                    raise ValueError("follow correct format(YYYY-MM-DD)")
-            elif element == 'url':
-                if not validators.url(dArgs[element]):
-                    raise ValueError('malformed url')
-            elif element == 'influx_db' or element == 'influx_user':
-                dbandu = dArgs[element]
-                for letter in dbandu:
-                    if 48 <= ord(dbandu[0]) <= 57:
-                        raise ValueError(f'invalid character "{letter}", no numbers at the start')
-                    elif 48 <= ord(letter) <= 57:
-                        pass
-                    elif ord(letter) < 65:
-                        raise ValueError(f'invalid character "{letter}"')
-                    elif 90 < ord(letter) < 97:
-                        raise ValueError(f'invalid character "{letter}"')
-                    elif ord(letter) > 122:
-                        raise ValueError(f'invalid character "{letter}"')
     parse_post(args)
 
 else:
