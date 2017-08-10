@@ -10,6 +10,9 @@ chars = ['/', '_', '-']
 
 
 def parse_post(options):
+    freq = 1
+    lFreq = []
+    lDates = []
     url = options.url
     if options.influx_pass is None:
         options.influx_pass = getpass.getpass("password: ")
@@ -20,26 +23,32 @@ def parse_post(options):
     else:
         dbfile = 0
     with open(dbfile, 'r') as content:
-        headers = content.readline()
-        line1 = content.readline()
+        content.readline()
         stop = options.stopd
         for line in content:
             list1 = []
             list2 = []
+            line1 = line
             line2 = content.readline()
             list1.append(line1.split(','))
             list2.append(line2.split(','))
-            date1 = datetime.strptime(list1[0][0], "%Y-%m-%d")
-            pairdate1 = int(calendar.timegm(date1.timetuple()) *
-                            1000000000)
-            date2 = datetime.strptime(list2[0][0], "%Y-%m-%d")
-            pairdate2 = int(calendar.timegm(date2.timetuple()) *
-                            1000000000)
+            try:
+                date1 = datetime.strptime(list1[0][0], "%Y-%m-%d")
+                pairdate1 = int(calendar.timegm(date1.timetuple()) *
+                                1000000000)
+                date2 = datetime.strptime(list2[0][0], "%Y-%m-%d")
+                pairdate2 = int(calendar.timegm(date2.timetuple()) *
+                                1000000000)
+            except ValueError:
+                break
             if list2[0][0] != '' and date2 <= stop:
                 if list1[0][2] == 'True\n' and list2[0][2] == 'True\n':
+                    print(date1, list1[0][1], "\t", date2, list2[0][1])
                     if list1[0][0] == list2[0][0]:
-                        count += 1
-                    elif list1[0][0] != list2[0][0]:
+                        count += 2
+                        freq += 2
+                    elif date1 != date2:
+                        lDates.append(f"{date1.year}-{date1.month}")
                         if pairdate2 < pairdate1:
                             b = pairdate1
                             a = pairdate2
@@ -58,10 +67,15 @@ def parse_post(options):
                                           f'plugin=statsd,state=ok,type=gauge ' \
                                           f'value={count} {x}\n'
                         if not options.dryrun:
-                            requests.post(url, params=payload, data=postvalues)
+                            pass
+                            # requests.post(url, params=payload, data=postvalues)
                         elif options.dryrun:
-                            print(dryrunstr)
-                line1 = line2
+                            pass
+                            # print(dryrunstr)
+                    lFreq.append(freq)
+                    freq = 1
+    print(lDates)
+    print(lFreq)
 
 if __name__ == "__main__":
     def ts(timesrs):
