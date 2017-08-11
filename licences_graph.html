@@ -2,9 +2,64 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Title</title>
+    <title>Frquency of Active Dropbox Licenses Per Month</title>
+    <link rel="stylesheet" src="https://cdn.rawgit.com/novus/nvd3/v1.8.1/build/nv.d3.css">
+     <script src="https://d3js.org/d3.v3.min.js"></script>
+     <script src="https://cdn.rawgit.com/novus/nvd3/v1.8.1/build/nv.d3.min.js"></script>
+
 </head>
 <body>
+    <div id="chart" >
+                <h1>Dropbox Licenses Activated Each Month</h1>
+                <p></p>
+                <svg style="min-width: 80%; min-height: 800px"></svg>
+    </div>
+    <div id="chart2" >
+                <h1>Active Users Per Month</h1>
+                <p></p>
+                <svg style="min-width: 80%; min-height: 800px"></svg>
+    </div>
+     <script>
+         d3.json('data.json', function(data) {
+            nv.addGraph(function() {
+                var chart = nv.models.stackedAreaChart()
+                            .x(function(d) { return d[0] })   //We can modify the data accessor functions...
+                            .y(function(d) { return d[1] })   //...in case your data is formatted differently.
+                            .useInteractiveGuideline(true)    //Tooltips which show all data points. Very nice!
+                            .rightAlignYAxis(true)      //Let's move the y-axis to the right side.
+                            .showControls(false)       //Allow user to choose 'Stacked', 'Stream', 'Expanded' mode.
+                            .clipEdge(true);
+                //Format x-axis labels with custom function.
+                chart.xAxis.tickFormat(function(d) {
+                    return d3.time.format('%m/%Y')(new Date(d))
+                });
+                chart.yAxis.tickFormat(d3.format(',f'));
+                d3.select('#chart svg').datum(data).call(chart);
+                nv.utils.windowResize(chart.update);
+                return chart;
+            });
+        });
+         d3.json('activeusers.json', function(data) {
+            nv.addGraph(function() {
+                var chart = nv.models.stackedAreaChart()
+                            .x(function(d) { return d[0] })   //We can modify the data accessor functions...
+                            .y(function(d) { return d[1] })   //...in case your data is formatted differently.
+                            .useInteractiveGuideline(true)    //Tooltips which show all data points. Very nice!
+                            .rightAlignYAxis(true)      //Let's move the y-axis to the right side.
+                            .showControls(false)       //Allow user to choose 'Stacked', 'Stream', 'Expanded' mode.
+                            .clipEdge(true);
+                //Format x-axis labels with custom function.
+                chart.xAxis.tickFormat(function(d) {
+                    return d3.time.format('%m/%Y')(new Date(d))
+                });
+                chart.yAxis.tickFormat(d3.format(',f'));
+                d3.select('#chart2 svg').datum(data).call(chart);
+                nv.utils.windowResize(chart.update);
+                return chart;
+            });
+        });
 
+
+     </script>
 </body>
 </html>
