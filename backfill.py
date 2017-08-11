@@ -6,6 +6,10 @@ import validators
 import getpass
 import io
 import fileinput
+import matplotlib.pyplot as plt
+import matplotlib.ticker as ticker
+
+
 chars = ['/', '_', '-']
 
 
@@ -25,57 +29,58 @@ def parse_post(options):
     with open(dbfile, 'r') as content:
         content.readline()
         stop = options.stopd
+        line1 = content.readline()
         for line in content:
             list1 = []
             list2 = []
-            line1 = line
-            line2 = content.readline()
+            line2 = line
             list1.append(line1.split(','))
             list2.append(line2.split(','))
-            try:
-                date1 = datetime.strptime(list1[0][0], "%Y-%m-%d")
-                pairdate1 = int(calendar.timegm(date1.timetuple()) *
-                                1000000000)
-                date2 = datetime.strptime(list2[0][0], "%Y-%m-%d")
-                pairdate2 = int(calendar.timegm(date2.timetuple()) *
-                                1000000000)
-            except ValueError:
-                break
+            if list1[0][2] == 'True\n' and list2[0][2] == 'True\n':
+                try:
+                    date1 = datetime.strptime(list1[0][0], "%Y-%m-%d")
+                    pairdate1 = int(calendar.timegm(date1.timetuple()) *
+                                    1000000000)
+                    date2 = datetime.strptime(list2[0][0], "%Y-%m-%d")
+                    pairdate2 = int(calendar.timegm(date2.timetuple()) *
+                                    1000000000)
+                except ValueError:
+                    break
             if list2[0][0] != '' and date2 <= stop:
                 if list1[0][2] == 'True\n' and list2[0][2] == 'True\n':
-                    print(date1, list1[0][1], "\t", date2, list2[0][1])
                     if list1[0][0] == list2[0][0]:
-                        count += 2
-                        freq += 2
+                        count += 1
+                        freq += 1
                     elif date1 != date2:
-                        lDates.append(f"{date1.year}-{date1.month}")
-                        if pairdate2 < pairdate1:
-                            b = pairdate1
-                            a = pairdate2
-                        else:
-                            a = pairdate1
-                            b = pairdate2
-
+                        if date1.month != date2.month:
+                            lDates.append(f"{date1.year}-{date1.month}")
+                        elif date2 == stop:
+                            lDates.append(f"{date2.year}-{date2.month}")
                         if not options.dryrun:
-                            print(a, b)
+                            print(pairdate1, pairdate2)
                         postvalues = ""
-                        dryrunstr = f'{options.timeseries} (other post values) value={count} {a}'
-                        for x in range(a, b, options.step):
+                        dryrunstr = f'{options.timeseries} (other post values) value={count} {pairdate1}'
+                        for x in range(pairdate1, pairdate2, options.step):
                             postvalues += f'{options.timeseries},type_instance=num_provisioned_users,' \
                                           f'ds_index=0,ds_name=value,' \
                                           f'ds_type=gauge,host=selfservice-node4.srv.uis.private.cam.ac.uk,' \
                                           f'plugin=statsd,state=ok,type=gauge ' \
                                           f'value={count} {x}\n'
                         if not options.dryrun:
-                            pass
-                            # requests.post(url, params=payload, data=postvalues)
+                            requests.post(url, params=payload, data=postvalues)
                         elif options.dryrun:
-                            pass
-                            # print(dryrunstr)
-                    lFreq.append(freq)
-                    freq = 1
-    print(lDates)
-    print(lFreq)
+                            print(dryrunstr)
+                        if date1.month != date2.month:
+                            lFreq.append(freq)
+                            freq = 1
+                        elif date2 == stop:
+                            lFreq.append(freq)
+            line1 = line2
+    xticks = list()
+    for axis in range(0, len(lDates)):
+        xticks.append(axis)
+    plotdata = [xticks, lDates, lFreq]
+    return plotdata
 
 if __name__ == "__main__":
     def ts(timesrs):
@@ -169,7 +174,38 @@ if __name__ == "__main__":
     parser.add_argument("-r", "--dryrun", dest="dryrun", type=bool, default=False, choices=[True, 1])
     args = parser.parse_args()
 
-    parse_post(args)
+    graph = parse_post(args)
+
+    fig = plt.figure(figsize=[10, 6])
+    ax = plt.subplot(111)
+    l = ax.fill_between(graph[0], graph[2])
+
+    l.set_facecolors([[.5, .5, .8, .3]])
+    l.set_edgecolors([[0, 0, .5, .3]])
+    l.set_linewidths([3])
+    loc = ticker.MultipleLocator(base=25.0)
+
+    ax.set_ylim(0, max(graph[2]) + 50)
+    ax.yaxis.set_major_locator(loc)
+    ax.yaxis.set_tick_params(size=0)
+    ax.yaxis.set_tick_params(size=0)
+    ax.spines['right'].set_color((.8, .8, .8))
+    ax.spines['top'].set_color((.8, .8, .8))
+
+    xlab = plt.xlabel('dates (Year-Month)')
+    ylab = plt.ylabel('frequency')
+    ttl = plt.title('frequency of active licenses per month')
+
+    xlab.set_style('italic')
+    xlab.set_size(13)
+    ylab.set_style('italic')
+    ylab.set_size(13)
+    ttl.set_weight('bold')
+
+    plt.grid(True)
+    plt.xticks(graph[0], graph[1])
+    plt.plot(graph[0], graph[2], color="#868485")
+    plt.show()
 
 else:
     parser = argparse.ArgumentParser(description="parse database of licenses and post rolling total and timestamps")
